@@ -1,15 +1,24 @@
 import '/auth/firebase_auth/auth_util.dart';
 import '/backend/backend.dart';
-import '/flutter_flow/custom_functions.dart' as functions;
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
-import '/ui/app_ui.dart';
 import '/index.dart';
+import '/ui/app_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'statistics_model.dart';
 export 'statistics_model.dart';
+
+/// One row of the 30-day chart: a song, how often it was posted, and the
+/// emotion most often attached to it (SCRUM-48).
+class SongStat {
+  SongStat(this.songName, this.count, this.topEmoji);
+
+  final String songName;
+  final int count;
+  final String topEmoji;
+}
 
 class StatisticsWidget extends StatefulWidget {
   const StatisticsWidget({super.key});
@@ -32,7 +41,8 @@ class _StatisticsWidgetState extends State<StatisticsWidget> {
     super.initState();
     _model = createModel(context, () => StatisticsModel());
 
-    // Only the signed-in user's own posts: statistics are private to them.
+    // Recalculated every time the screen opens, over the user's own posts
+    // only: statistics are private to their owner (SCRUM-44).
     _lastMonthPosts = currentUserReference == null
         ? Stream.value([])
         : queryUserPostRecord(
@@ -54,35 +64,57 @@ class _StatisticsWidgetState extends State<StatisticsWidget> {
     super.dispose();
   }
 
-  List<MapEntry<String, int>> _topSongs(List<UserPostRecord> posts) {
+  /// TOP-10 songs of the last 30 days, each with its most frequent emotion.
+  List<SongStat> _topSongs(List<UserPostRecord> posts) {
+    final counts = <String, int>{};
+    final emojiPerSong = <String, Map<String, int>>{};
+
+    for (final post in posts) {
+      final song = post.songName;
+      if (song.isEmpty) continue;
+      counts[song] = (counts[song] ?? 0) + 1;
+      if (post.emoji.isNotEmpty) {
+        final forSong = emojiPerSong.putIfAbsent(song, () => <String, int>{});
+        forSong[post.emoji] = (forSong[post.emoji] ?? 0) + 1;
+      }
+    }
+
+    final ranked = counts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return ranked.take(10).map((entry) {
+      final emojis = emojiPerSong[entry.key];
+      var topEmoji = '';
+      var best = 0;
+      emojis?.forEach((emoji, count) {
+        if (count > best) {
+          best = count;
+          topEmoji = emoji;
+        }
+      });
+      return SongStat(entry.key, entry.value, topEmoji);
+    }).toList();
+  }
+
+  Map<String, int> _emotionTotals(List<UserPostRecord> posts) {
     final counts = <String, int>{};
     for (final post in posts) {
-      if (post.songName.isEmpty) continue;
-      counts[post.songName] = (counts[post.songName] ?? 0) + 1;
+      if (post.emoji.isEmpty) continue;
+      counts[post.emoji] = (counts[post.emoji] ?? 0) + 1;
     }
     final sorted = counts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    return sorted.take(5).toList();
+    return Map.fromEntries(sorted);
   }
 
   Widget _statCard(BuildContext context, String label, String value) {
     return Container(
-      padding: EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: FlutterFlowTheme.of(context).secondaryBackground,
-        borderRadius: BorderRadius.circular(12.0),
-        border: Border.all(color: AppUi.border(context), width: 1.0),
-      ),
+      padding: EdgeInsets.all(AppUi.gutter),
+      decoration: AppUi.cardDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: FlutterFlowTheme.of(context).labelMedium.override(
-                  font: GoogleFonts.inter(),
-                  letterSpacing: 0.0,
-                ),
-          ),
+          Text(label, style: AppUi.muted(context)),
           SizedBox(height: 6.0),
           Text(
             value,
@@ -97,91 +129,121 @@ class _StatisticsWidgetState extends State<StatisticsWidget> {
     );
   }
 
-  Widget _card(BuildContext context, List<Widget> children) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(16.0),
-      decoration: BoxDecoration(
-        color: FlutterFlowTheme.of(context).secondaryBackground,
-        borderRadius: BorderRadius.circular(12.0),
-        border: Border.all(color: AppUi.border(context), width: 1.0),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: children,
-      ),
-    );
-  }
+  /// A horizontal bar: the song's share of the most-posted song.
+  Widget _chartRow(BuildContext context, int rank, SongStat stat, int max) {
+    final fraction = max == 0 ? 0.0 : stat.count / max;
 
-  Widget _sectionTitle(BuildContext context, String title) {
     return Padding(
-      padding: EdgeInsetsDirectional.fromSTEB(4.0, 24.0, 0.0, 10.0),
-      child: Text(
-        title,
-        style: FlutterFlowTheme.of(context).titleMedium.override(
-              font: GoogleFonts.urbanist(fontWeight: FontWeight.w600),
-              letterSpacing: 0.0,
-            ),
-      ),
-    );
-  }
-
-  Widget _countRow(BuildContext context, String label, int count, int max,
-      {bool isImage = false}) {
-    return Padding(
-      padding: EdgeInsetsDirectional.fromSTEB(0.0, 6.0, 0.0, 6.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: isImage
-                    ? Align(
-                        alignment: AlignmentDirectional(-1.0, 0.0),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(6.0),
-                          child: Image.network(
-                            label,
-                            width: 32.0,
-                            height: 32.0,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Icon(
-                              Icons.emoji_emotions_outlined,
-                              color: FlutterFlowTheme.of(context).secondaryText,
-                            ),
-                          ),
-                        ),
-                      )
-                    : Text(
-                        label,
-                        overflow: TextOverflow.ellipsis,
-                        style: FlutterFlowTheme.of(context).bodyMedium,
-                      ),
-              ),
-              Text('$count', style: FlutterFlowTheme.of(context).bodyMedium),
-            ],
+          SizedBox(
+            width: 22.0,
+            child: Text('$rank.', style: AppUi.muted(context)),
           ),
-          SizedBox(height: 6.0),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4.0),
-            child: LinearProgressIndicator(
-              value: max == 0 ? 0.0 : count / max,
-              minHeight: 8.0,
-              backgroundColor: FlutterFlowTheme.of(context).alternate,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                FlutterFlowTheme.of(context).primary,
-              ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        stat.songName,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppUi.body(context),
+                      ),
+                    ),
+                    SizedBox(width: 8.0),
+                    Text('${stat.count}',
+                        style: AppUi.title(context, size: 14.0)),
+                  ],
+                ),
+                SizedBox(height: 6.0),
+                LayoutBuilder(
+                  builder: (context, constraints) => Stack(
+                    children: [
+                      Container(
+                        height: 10.0,
+                        decoration: BoxDecoration(
+                          color: FlutterFlowTheme.of(context).alternate,
+                          borderRadius: BorderRadius.circular(5.0),
+                        ),
+                      ),
+                      Container(
+                        height: 10.0,
+                        width: constraints.maxWidth * fraction,
+                        decoration: BoxDecoration(
+                          color: FlutterFlowTheme.of(context).primary,
+                          borderRadius: BorderRadius.circular(5.0),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
+          SizedBox(width: AppUi.gap),
+          // The emotion most often attached to this song.
+          stat.topEmoji.isEmpty
+              ? SizedBox(width: 32.0)
+              : AppUi.squareImage(
+                  context,
+                  stat.topEmoji,
+                  size: 32.0,
+                  fallback: Icons.emoji_emotions_outlined,
+                ),
         ],
       ),
     );
   }
 
-  Widget _emptyText(BuildContext context, String text) {
-    return Text(text, style: FlutterFlowTheme.of(context).labelMedium);
+  Widget _emotionRow(
+      BuildContext context, String emoji, int count, int max, int total) {
+    final fraction = max == 0 ? 0.0 : count / max;
+    final percent = total == 0 ? 0 : (count * 100 / total).round();
+
+    return Padding(
+      padding: EdgeInsetsDirectional.fromSTEB(0.0, 8.0, 0.0, 8.0),
+      child: Row(
+        children: [
+          AppUi.squareImage(
+            context,
+            emoji,
+            size: 32.0,
+            fallback: Icons.emoji_emotions_outlined,
+          ),
+          SizedBox(width: AppUi.gap),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) => Stack(
+                children: [
+                  Container(
+                    height: 10.0,
+                    decoration: BoxDecoration(
+                      color: FlutterFlowTheme.of(context).alternate,
+                      borderRadius: BorderRadius.circular(5.0),
+                    ),
+                  ),
+                  Container(
+                    height: 10.0,
+                    width: constraints.maxWidth * fraction,
+                    decoration: BoxDecoration(
+                      color: FlutterFlowTheme.of(context).secondary,
+                      borderRadius: BorderRadius.circular(5.0),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(width: AppUi.gap),
+          Text('$count ($percent%)', style: AppUi.muted(context)),
+        ],
+      ),
+    );
   }
 
   @override
@@ -195,29 +257,27 @@ class _StatisticsWidgetState extends State<StatisticsWidget> {
         key: scaffoldKey,
         backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
         appBar: AppBar(
-          backgroundColor: FlutterFlowTheme.of(context).primary,
+          backgroundColor: FlutterFlowTheme.of(context).secondaryBackground,
           automaticallyImplyLeading: false,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back_rounded,
+              color: FlutterFlowTheme.of(context).primaryText,
+            ),
+            onPressed: () => context.pushNamed(ProfileWidget.routeName),
+          ),
           title: Text(
             'Statistics',
             style: FlutterFlowTheme.of(context).headlineMedium.override(
-                  font: GoogleFonts.urbanist(
-                    fontWeight:
-                        FlutterFlowTheme.of(context).headlineMedium.fontWeight,
-                    fontStyle:
-                        FlutterFlowTheme.of(context).headlineMedium.fontStyle,
-                  ),
-                  color: Colors.white,
+                  font: GoogleFonts.urbanist(fontWeight: FontWeight.bold),
+                  color: FlutterFlowTheme.of(context).primaryText,
                   fontSize: 22.0,
                   letterSpacing: 0.0,
-                  fontWeight:
-                      FlutterFlowTheme.of(context).headlineMedium.fontWeight,
-                  fontStyle:
-                      FlutterFlowTheme.of(context).headlineMedium.fontStyle,
                 ),
           ),
           actions: [],
           centerTitle: false,
-          elevation: 1.0,
+          elevation: 0.0,
         ),
         body: SafeArea(
           top: true,
@@ -225,37 +285,34 @@ class _StatisticsWidgetState extends State<StatisticsWidget> {
             stream: _lastMonthPosts,
             builder: (context, snapshot) {
               if (snapshot.hasError) {
-                return Center(
-                  child: Text(
-                    'Could not load your statistics.',
-                    style: FlutterFlowTheme.of(context).bodyMedium,
-                  ),
+                return AppUi.emptyState(
+                  context,
+                  icon: Icons.error_outline,
+                  title: 'Could not load your statistics',
+                  message: 'Check your connection and try again.',
                 );
               }
-              // Customize what your widget looks like when it's loading.
               if (!snapshot.hasData) {
-                return Center(
-                  child: SizedBox(
-                    width: 50.0,
-                    height: 50.0,
-                    child: CircularProgressIndicator(
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        FlutterFlowTheme.of(context).primary,
-                      ),
-                    ),
-                  ),
-                );
+                return AppUi.loader(context);
               }
               final posts = snapshot.data!;
               final topSongs = _topSongs(posts);
-              final emojis =
-                  (functions.countEmojiFrequency(posts) as Map<String, int>)
-                      .entries
-                      .take(5)
-                      .toList();
+              final emotions = _emotionTotals(posts);
+              final emotionMax = emotions.isEmpty ? 0 : emotions.values.first;
+
+              if (posts.isEmpty) {
+                return AppUi.emptyState(
+                  context,
+                  icon: Icons.insights_outlined,
+                  title: 'Nothing to show yet',
+                  message:
+                      'Post a song with an emotion and your last 30 days appear here.',
+                );
+              }
 
               return ListView(
-                padding: EdgeInsets.all(16.0),
+                padding: EdgeInsets.fromLTRB(
+                    AppUi.gutter, AppUi.gutter, AppUi.gutter, 32.0),
                 children: [
                   Row(
                     children: [
@@ -266,7 +323,7 @@ class _StatisticsWidgetState extends State<StatisticsWidget> {
                           '${valueOrDefault(currentUserDocument?.streakCount, 0)} days',
                         ),
                       ),
-                      SizedBox(width: 12.0),
+                      SizedBox(width: AppUi.gap),
                       Expanded(
                         child: _statCard(
                           context,
@@ -276,63 +333,62 @@ class _StatisticsWidgetState extends State<StatisticsWidget> {
                       ),
                     ],
                   ),
-                  _sectionTitle(context, 'Most posted songs'),
-                  _card(context, [
-                    if (topSongs.isEmpty)
-                      _emptyText(context, 'No posts in the last 30 days.'),
-                    ...topSongs.map((entry) => _countRow(
-                        context, entry.key, entry.value, topSongs.first.value)),
-                  ]),
-                  _sectionTitle(context, 'Emotions'),
-                  _card(context, [
-                    if (emojis.isEmpty)
-                      _emptyText(
-                          context, 'No emotions shared in the last 30 days.'),
-                    ...emojis.map((entry) => _countRow(
-                          context,
-                          entry.key,
-                          entry.value,
-                          emojis.first.value,
-                          isImage: entry.key.startsWith('http'),
-                        )),
-                  ]),
-                  Padding(
-                    padding:
-                        EdgeInsetsDirectional.fromSTEB(0.0, 32.0, 0.0, 0.0),
+                  AppUi.sectionTitle(context, 'Top 10 songs, last 30 days'),
+                  AppUi.card(
+                    context,
+                    padding: EdgeInsets.all(AppUi.gutter),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Each bar shows how often you posted the song, with the emotion you attached to it most.',
+                          style: AppUi.muted(context),
+                        ),
+                        SizedBox(height: 4.0),
+                        ...topSongs.asMap().entries.map(
+                              (entry) => _chartRow(
+                                context,
+                                entry.key + 1,
+                                entry.value,
+                                topSongs.first.count,
+                              ),
+                            ),
+                      ],
+                    ),
+                  ),
+                  AppUi.sectionTitle(context, 'Emotions, last 30 days'),
+                  AppUi.card(
+                    context,
+                    padding: EdgeInsets.all(AppUi.gutter),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: emotions.isEmpty
+                          ? [
+                              Text(
+                                'No emotions shared in the last 30 days.',
+                                style: AppUi.muted(context),
+                              )
+                            ]
+                          : emotions.entries
+                              .map((entry) => _emotionRow(
+                                    context,
+                                    entry.key,
+                                    entry.value,
+                                    emotionMax,
+                                    posts.length,
+                                  ))
+                              .toList(),
+                    ),
+                  ),
+                  SizedBox(height: 24.0),
+                  SizedBox(
+                    width: double.infinity,
                     child: FFButtonWidget(
                       onPressed: () async {
                         context.pushNamed(ProfileWidget.routeName);
                       },
-                      text: 'Back',
-                      options: FFButtonOptions(
-                        height: 40.0,
-                        padding: EdgeInsetsDirectional.fromSTEB(
-                            16.0, 0.0, 16.0, 0.0),
-                        iconPadding:
-                            EdgeInsetsDirectional.fromSTEB(0.0, 0.0, 0.0, 0.0),
-                        color: FlutterFlowTheme.of(context).error,
-                        textStyle:
-                            FlutterFlowTheme.of(context).titleSmall.override(
-                                  font: GoogleFonts.plusJakartaSans(
-                                    fontWeight: FlutterFlowTheme.of(context)
-                                        .titleSmall
-                                        .fontWeight,
-                                    fontStyle: FlutterFlowTheme.of(context)
-                                        .titleSmall
-                                        .fontStyle,
-                                  ),
-                                  color: Colors.white,
-                                  letterSpacing: 0.0,
-                                  fontWeight: FlutterFlowTheme.of(context)
-                                      .titleSmall
-                                      .fontWeight,
-                                  fontStyle: FlutterFlowTheme.of(context)
-                                      .titleSmall
-                                      .fontStyle,
-                                ),
-                        elevation: 0.0,
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
+                      text: 'Back to profile',
+                      options: AppUi.quietButton(context),
                     ),
                   ),
                 ],

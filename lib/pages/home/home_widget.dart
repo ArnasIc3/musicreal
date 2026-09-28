@@ -224,10 +224,14 @@ class _HomeWidgetState extends State<HomeWidget> {
       );
     }
 
+    // SCRUM-49: the feed carries today's posts from confirmed friends only.
+    final startOfToday = functions.startOfDay(getCurrentTimestamp);
+
     return StreamBuilder<List<UserPostRecord>>(
       stream: queryUserPostRecord(
         queryBuilder: (userPostRecord) => userPostRecord
             .whereIn('post_user', friends)
+            .where('created_at', isGreaterThanOrEqualTo: startOfToday)
             .orderBy('created_at', descending: true),
       ),
       builder: (context, snapshot) {
@@ -242,8 +246,9 @@ class _HomeWidgetState extends State<HomeWidget> {
           return AppUi.emptyState(
             context,
             icon: Icons.music_note_outlined,
-            title: 'Nothing posted yet',
-            message: 'When your friends post a song, it shows up here.',
+            title: 'No posts today',
+            message:
+                'The feed shows what your friends posted today. Nothing yet — check back later.',
           );
         }
         return ListView.builder(
