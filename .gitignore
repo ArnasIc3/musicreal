@@ -40,3 +40,8 @@ firestore-debug.log
 
 # Local backups
 *.bak
+
+# Credentials — never commit
+*serviceAccount*.json
+*service-account*.json
+firebase/seed/node_modules/

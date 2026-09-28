@@ -1,0 +1,8 @@
+{
+  "name": "musicreal-seed",
+  "private": true,
+  "description": "Fills the Firestore project with demo users, friendships and posts.",
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}
