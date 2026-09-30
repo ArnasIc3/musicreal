@@ -4,6 +4,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import '/index.dart';
+import '/pages/post/post_widget.dart' show kEmotions;
 import '/ui/app_ui.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -76,6 +77,62 @@ class _ProfileWidgetState extends State<ProfileWidget> {
         ),
       ),
     );
+  }
+
+  /// Writes 30 days of the signed-in user's own posts, so the statistics
+  /// screen and the streak have something to show in a demo. Only the user's
+  /// own data is touched, which the current Firestore rules already allow.
+  Future<void> _fillDemoData(BuildContext context) async {
+    final user = currentUserReference;
+    if (user == null) return;
+
+    final music = await queryMusicRecordOnce(limit: 10);
+    final songs =
+        music.map((m) => m.songName).where((name) => name.isNotEmpty).toList();
+    if (songs.isEmpty) {
+      _showMessage(context, 'The Music collection is empty, nothing to post.');
+      return;
+    }
+
+    _showMessage(context, 'Adding demo posts...');
+    final now = getCurrentTimestamp;
+    var written = 0;
+    for (var day = 0; day < 30; day++) {
+      if (day % 4 == 3) continue; // gaps, so the chart is not flat
+      await user.collection('userPost').doc('demo_history_$day').set({
+        ...createUserPostRecordData(
+          songName: songs[(day * 3) % songs.length],
+          emoji: kEmotions[day % kEmotions.length],
+          postUser: user,
+          createdAt: now.subtract(Duration(days: day, hours: 1)),
+        ),
+        'demo_seed': true,
+      });
+      written++;
+    }
+    await user.update(createUsersRecordData(
+      streakCount: 7,
+      lastPostDate: now,
+    ));
+
+    if (!context.mounted) return;
+    _showMessage(context, 'Demo data added: $written posts over 30 days.');
+  }
+
+  Future<void> _clearDemoData(BuildContext context) async {
+    final user = currentUserReference;
+    if (user == null) return;
+
+    final posts = await user
+        .collection('userPost')
+        .where('demo_seed', isEqualTo: true)
+        .get();
+    for (final doc in posts.docs) {
+      await doc.reference.delete();
+    }
+
+    if (!context.mounted) return;
+    _showMessage(context, 'Demo data removed: ${posts.docs.length} posts.');
   }
 
   Widget _divider(BuildContext context) => Divider(
@@ -234,6 +291,41 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                       ),
                     ),
 
+                    AppUi.sectionTitle(context, 'Demo data'),
+                    AppUi.card(
+                      context,
+                      padding: EdgeInsets.all(AppUi.gutter),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Fills your own account with 30 days of posts so the statistics and streak can be demonstrated. It does not create friends or their posts.',
+                            style: AppUi.muted(context),
+                          ),
+                          SizedBox(height: AppUi.gap),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: FFButtonWidget(
+                                  onPressed: () => _fillDemoData(context),
+                                  text: 'Fill demo data',
+                                  options: AppUi.primaryButton(context),
+                                ),
+                              ),
+                              SizedBox(width: AppUi.gap),
+                              Expanded(
+                                child: FFButtonWidget(
+                                  onPressed: () => _clearDemoData(context),
+                                  text: 'Remove',
+                                  options: AppUi.quietButton(context),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
                     AppUi.sectionTitle(context, 'Session'),
                     SizedBox(
                       width: double.infinity,
@@ -309,4 +401,17 @@ class _ProfileWidgetState extends State<ProfileWidget> {
       ),
     );
   }
+}
+
+void _showMessage(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        message,
+        style: TextStyle(color: FlutterFlowTheme.of(context).primaryText),
+      ),
+      duration: Duration(milliseconds: 4000),
+      backgroundColor: FlutterFlowTheme.of(context).secondary,
+    ),
+  );
 }
