@@ -68,15 +68,37 @@ async function findTargetUser() {
   return found.docs[0];
 }
 
+// Used when the Music catalogue is empty. The audio is SoundHelix's publicly
+// hosted sample music, so playback needs a network connection.
+const DEMO_SONGS = [
+  { name: "Morning Light", genre: "Chill", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
+  { name: "City Lines", genre: "Electronic", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
+  { name: "Slow Rivers", genre: "Ambient", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" },
+  { name: "Night Drive", genre: "Electronic", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3" },
+  { name: "Paper Planes", genre: "Pop", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3" },
+  { name: "Open Window", genre: "Chill", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3" },
+  { name: "Long Way Home", genre: "Rock", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3" },
+  { name: "Quiet Hours", genre: "Ambient", url: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3" },
+];
+
 async function songNames() {
   const music = await db.collection("Music").limit(10).get();
   const names = music.docs.map((d) => d.get("SongName")).filter(Boolean);
-  if (names.length === 0) {
-    throw new Error(
-      "The Music collection is empty, so posts would reference songs that do not exist."
-    );
-  }
-  return names;
+  if (names.length > 0) return names;
+
+  console.log("Music catalogue is empty, adding demo songs.");
+  const writer = db.bulkWriter();
+  DEMO_SONGS.forEach((song, i) => {
+    writer.set(db.collection("Music").doc(`demo_song_${i + 1}`), {
+      SongName: song.name,
+      SongURL: song.url,
+      Author: "SoundHelix",
+      Genres: [song.genre],
+      demo_seed: true,
+    });
+  });
+  await writer.close();
+  return DEMO_SONGS.map((song) => song.name);
 }
 
 async function removeDemoData(targetRef) {
@@ -97,6 +119,9 @@ async function removeDemoData(targetRef) {
   }
   const own = await targetRef.collection("userPost").where("demo_seed", "==", true).get();
   own.forEach((doc) => writer.delete(doc.ref));
+
+  const songs = await db.collection("Music").where("demo_seed", "==", true).get();
+  songs.forEach((doc) => writer.delete(doc.ref));
   await writer.close();
   console.log("Demo data removed.");
 }

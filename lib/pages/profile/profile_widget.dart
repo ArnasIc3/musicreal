@@ -79,6 +79,88 @@ class _ProfileWidgetState extends State<ProfileWidget> {
     );
   }
 
+  /// Demo tracks, used when the Music collection is empty. The audio is
+  /// SoundHelix's publicly hosted sample music, so playback needs a network
+  /// connection.
+  static const List<Map<String, String>> _demoSongs = [
+    {
+      'name': 'Morning Light',
+      'author': 'SoundHelix',
+      'genre': 'Chill',
+      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
+    },
+    {
+      'name': 'City Lines',
+      'author': 'SoundHelix',
+      'genre': 'Electronic',
+      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3'
+    },
+    {
+      'name': 'Slow Rivers',
+      'author': 'SoundHelix',
+      'genre': 'Ambient',
+      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3'
+    },
+    {
+      'name': 'Night Drive',
+      'author': 'SoundHelix',
+      'genre': 'Electronic',
+      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3'
+    },
+    {
+      'name': 'Paper Planes',
+      'author': 'SoundHelix',
+      'genre': 'Pop',
+      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3'
+    },
+    {
+      'name': 'Open Window',
+      'author': 'SoundHelix',
+      'genre': 'Chill',
+      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3'
+    },
+    {
+      'name': 'Long Way Home',
+      'author': 'SoundHelix',
+      'genre': 'Rock',
+      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3'
+    },
+    {
+      'name': 'Quiet Hours',
+      'author': 'SoundHelix',
+      'genre': 'Ambient',
+      'url': 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3'
+    },
+  ];
+
+  /// Puts demo tracks into the shared Music catalogue when it is empty, so
+  /// posts can reference songs that actually exist.
+  Future<List<String>> _ensureSongs(BuildContext context) async {
+    final existing = await queryMusicRecordOnce(limit: 10);
+    final names = existing
+        .map((m) => m.songName)
+        .where((name) => name.isNotEmpty)
+        .toList();
+    if (names.isNotEmpty) return names;
+
+    _showMessage(context, 'Music catalogue is empty, adding demo songs...');
+    for (var i = 0; i < _demoSongs.length; i++) {
+      final song = _demoSongs[i];
+      await MusicRecord.collection.doc('demo_song_${i + 1}').set({
+        ...createMusicRecordData(
+          songName: song['name'],
+          songURL: song['url'],
+          author: song['author'],
+        ),
+        ...mapToFirestore({
+          'Genres': [song['genre']],
+        }),
+        'demo_seed': true,
+      });
+    }
+    return _demoSongs.map((song) => song['name']!).toList();
+  }
+
   /// Writes 30 days of the signed-in user's own posts, so the statistics
   /// screen and the streak have something to show in a demo. Only the user's
   /// own data is touched, which the current Firestore rules already allow.
@@ -86,14 +168,13 @@ class _ProfileWidgetState extends State<ProfileWidget> {
     final user = currentUserReference;
     if (user == null) return;
 
-    final music = await queryMusicRecordOnce(limit: 10);
-    final songs =
-        music.map((m) => m.songName).where((name) => name.isNotEmpty).toList();
+    final songs = await _ensureSongs(context);
     if (songs.isEmpty) {
-      _showMessage(context, 'The Music collection is empty, nothing to post.');
+      _showMessage(context, 'Could not prepare demo songs.');
       return;
     }
 
+    if (!context.mounted) return;
     _showMessage(context, 'Adding demo posts...');
     final now = getCurrentTimestamp;
     var written = 0;
@@ -299,7 +380,7 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Fills your own account with 30 days of posts so the statistics and streak can be demonstrated. It does not create friends or their posts.',
+                            'Adds demo songs to the catalogue if it is empty, then fills your own account with 30 days of posts, so statistics and the streak can be demonstrated. It does not create friends or their posts.',
                             style: AppUi.muted(context),
                           ),
                           SizedBox(height: AppUi.gap),
