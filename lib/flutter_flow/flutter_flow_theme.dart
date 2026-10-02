@@ -15,8 +15,9 @@ abstract class FlutterFlowTheme {
 
   static ThemeMode get themeMode {
     final darkMode = _prefs?.getBool(kThemeModeKey);
+    // Dark is the app's default; the profile toggle still overrides it.
     return darkMode == null
-        ? ThemeMode.system
+        ? ThemeMode.dark
         : darkMode
             ? ThemeMode.dark
             : ThemeMode.light;

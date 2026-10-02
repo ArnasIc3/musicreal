@@ -40,20 +40,25 @@ class AppUi {
     );
   }
 
+  // titleMedium is white in this theme too, so headings need the colour set.
   static Widget sectionTitle(BuildContext context, String title) => Padding(
         padding: EdgeInsetsDirectional.fromSTEB(4.0, 24.0, 0.0, 10.0),
         child: Text(
           title,
           style: FlutterFlowTheme.of(context).titleMedium.override(
                 font: GoogleFonts.urbanist(fontWeight: FontWeight.w600),
+                color: FlutterFlowTheme.of(context).primaryText,
                 letterSpacing: 0.0,
               ),
         ),
       );
 
+  /// The theme's titleSmall is white (it was built for buttons), so the
+  /// colour has to be set explicitly or the text disappears on a card.
   static TextStyle title(BuildContext context, {double size = 16.0}) =>
       FlutterFlowTheme.of(context).titleSmall.override(
             font: GoogleFonts.inter(fontWeight: FontWeight.w600),
+            color: FlutterFlowTheme.of(context).primaryText,
             fontSize: size,
             letterSpacing: 0.0,
           );

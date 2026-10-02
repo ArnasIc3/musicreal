@@ -3,6 +3,7 @@ import '/backend/backend.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
+import '/demo/demo_data.dart';
 import '/index.dart';
 import 'package:easy_debounce/easy_debounce.dart';
 import 'package:flutter/material.dart';
@@ -87,6 +88,7 @@ class _FriendsListAddFriendWidgetState
             textAlign: TextAlign.center,
             style: FlutterFlowTheme.of(context).titleSmall.override(
                   font: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                  color: FlutterFlowTheme.of(context).primaryText,
                   letterSpacing: 0.0,
                 ),
           ),
@@ -147,8 +149,10 @@ class _FriendsListAddFriendWidgetState
   }
 
   Widget _resultTile(BuildContext context, UsersRecord user) {
-    final isFriend =
-        (currentUserDocument?.friends.toList() ?? []).contains(user.reference);
+    final isFriend = kDemoMode
+        ? DemoData.me.friends.any((ref) => ref.id == user.reference.id)
+        : (currentUserDocument?.friends.toList() ?? [])
+            .contains(user.reference);
 
     return Padding(
       padding: EdgeInsetsDirectional.fromSTEB(16.0, 0.0, 16.0, 12.0),
@@ -171,6 +175,7 @@ class _FriendsListAddFriendWidgetState
                   overflow: TextOverflow.ellipsis,
                   style: FlutterFlowTheme.of(context).titleSmall.override(
                         font: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                        color: FlutterFlowTheme.of(context).primaryText,
                         fontSize: 16.0,
                         letterSpacing: 0.0,
                       ),
@@ -223,12 +228,14 @@ class _FriendsListAddFriendWidgetState
   Widget build(BuildContext context) {
     return AuthUserStreamWidget(
       builder: (context) => StreamBuilder<List<UsersRecord>>(
-        stream: queryUsersRecord(
-          queryBuilder: (usersRecord) => usersRecord.where(
-            'display_name',
-            isNotEqualTo: currentUserDisplayName,
-          ),
-        ),
+        stream: kDemoMode
+            ? Stream.value(DemoData.allUsers)
+            : queryUsersRecord(
+                queryBuilder: (usersRecord) => usersRecord.where(
+                  'display_name',
+                  isNotEqualTo: currentUserDisplayName,
+                ),
+              ),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return Scaffold(

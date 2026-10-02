@@ -1,5 +1,6 @@
 import '/backend/backend.dart';
 import '/flutter_flow/flutter_flow_drop_down.dart';
+import '/demo/demo_data.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/form_field_controller.dart';
@@ -209,6 +210,19 @@ class _MusicSearchSheetWidgetState extends State<MusicSearchSheetWidget> {
                         ? _model.dropDownValue
                         : null,
                   ),
+              demoItems: kDemoMode
+                  ? DemoData.music.where((song) {
+                      final search = _model.searchInputTextController.text;
+                      final genre = _model.dropDownValue ?? '';
+                      final matchesSearch = search.isEmpty ||
+                          song.songName
+                              .toLowerCase()
+                              .contains(search.toLowerCase());
+                      final matchesGenre =
+                          genre.isEmpty || song.genres.contains(genre);
+                      return matchesSearch && matchesGenre;
+                    }).toList()
+                  : null,
             ),
             padding: EdgeInsets.zero,
             shrinkWrap: true,

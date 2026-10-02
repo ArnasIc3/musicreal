@@ -37,10 +37,27 @@ class MusicSearchSheetModel extends FlutterFlowModel<MusicSearchSheetWidget> {
   }
 
   /// Additional helper methods.
+  List<String>? _demoNames;
+
   PagingController<DocumentSnapshot?, MusicRecord> setListViewController(
     Query query, {
     DocumentReference<Object?>? parent,
+    List<MusicRecord>? demoItems,
   }) {
+    // Demo mode never touches Firestore: the list is filled from fixed data.
+    if (demoItems != null) {
+      final names = demoItems.map((item) => item.songName).toList();
+      if (listViewPagingController == null ||
+          _demoNames?.join('|') != names.join('|')) {
+        _demoNames = names;
+        listViewPagingController?.dispose();
+        listViewPagingController =
+            PagingController<DocumentSnapshot?, MusicRecord>(firstPageKey: null)
+              ..appendLastPage(demoItems);
+      }
+      return listViewPagingController!;
+    }
+
     listViewPagingController ??= _createListViewController(query, parent);
     if (listViewPagingQuery != query) {
       listViewPagingQuery = query;

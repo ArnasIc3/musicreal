@@ -5,6 +5,7 @@ import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
 import '/flutter_flow/custom_functions.dart' as functions;
+import '/demo/demo_data.dart';
 import '/index.dart';
 import '/ui/app_ui.dart';
 import 'package:collection/collection.dart';
@@ -91,12 +92,15 @@ class _HomeWidgetState extends State<HomeWidget> {
 
   /// The track behind a post, when the song exists in the catalogue.
   Widget _player(BuildContext context, String songName) {
+    final demoMusic = DemoData.musicNamed(songName);
     return StreamBuilder<List<MusicRecord>>(
-      stream: queryMusicRecord(
-        queryBuilder: (musicRecord) =>
-            musicRecord.where('SongName', isEqualTo: songName),
-        singleRecord: true,
-      ),
+      stream: kDemoMode
+          ? Stream.value([if (demoMusic != null) demoMusic])
+          : queryMusicRecord(
+              queryBuilder: (musicRecord) =>
+                  musicRecord.where('SongName', isEqualTo: songName),
+              singleRecord: true,
+            ),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return SizedBox(
@@ -137,7 +141,9 @@ class _HomeWidgetState extends State<HomeWidget> {
 
   Widget _postCard(BuildContext context, UserPostRecord post) {
     return StreamBuilder<UsersRecord>(
-      stream: UsersRecord.getDocument(post.postUser!),
+      stream: kDemoMode
+          ? Stream.value(DemoData.userFor(post.postUser!))
+          : UsersRecord.getDocument(post.postUser!),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return Padding(
@@ -206,7 +212,9 @@ class _HomeWidgetState extends State<HomeWidget> {
   }
 
   Widget _feed(BuildContext context) {
-    final friends = currentUserDocument?.friends.toList() ?? [];
+    final friends = kDemoMode
+        ? DemoData.me.friends.toList()
+        : (currentUserDocument?.friends.toList() ?? []);
 
     if (friends.isEmpty) {
       return AppUi.emptyState(
@@ -228,12 +236,14 @@ class _HomeWidgetState extends State<HomeWidget> {
     final startOfToday = functions.startOfDay(getCurrentTimestamp);
 
     return StreamBuilder<List<UserPostRecord>>(
-      stream: queryUserPostRecord(
-        queryBuilder: (userPostRecord) => userPostRecord
-            .whereIn('post_user', friends)
-            .where('created_at', isGreaterThanOrEqualTo: startOfToday)
-            .orderBy('created_at', descending: true),
-      ),
+      stream: kDemoMode
+          ? Stream.value(DemoData.todaysFeed)
+          : queryUserPostRecord(
+              queryBuilder: (userPostRecord) => userPostRecord
+                  .whereIn('post_user', friends)
+                  .where('created_at', isGreaterThanOrEqualTo: startOfToday)
+                  .orderBy('created_at', descending: true),
+            ),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return Padding(
@@ -274,10 +284,17 @@ class _HomeWidgetState extends State<HomeWidget> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('🔥', style: TextStyle(fontSize: 14.0)),
+            Icon(
+              Icons.local_fire_department_rounded,
+              size: 16.0,
+              color: FlutterFlowTheme.of(context).error,
+            ),
             SizedBox(width: 6.0),
             Text(
-              valueOrDefault(currentUserDocument?.streakCount, 0).toString(),
+              kDemoMode
+                  ? '${DemoData.me.streakCount}'
+                  : valueOrDefault(currentUserDocument?.streakCount, 0)
+                      .toString(),
               style: AppUi.title(context, size: 14.0),
             ),
           ],

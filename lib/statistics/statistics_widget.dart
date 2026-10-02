@@ -3,6 +3,7 @@ import '/backend/backend.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
+import '/demo/demo_data.dart';
 import '/index.dart';
 import '/ui/app_ui.dart';
 import 'package:flutter/material.dart';
@@ -43,7 +44,9 @@ class _StatisticsWidgetState extends State<StatisticsWidget> {
 
     // Recalculated every time the screen opens, over the user's own posts
     // only: statistics are private to their owner (SCRUM-44).
-    _lastMonthPosts = currentUserReference == null
+    _lastMonthPosts = kDemoMode
+        ? Stream.value(DemoData.myLastMonth)
+        : currentUserReference == null
         ? Stream.value([])
         : queryUserPostRecord(
             parent: currentUserReference,
@@ -320,7 +323,7 @@ class _StatisticsWidgetState extends State<StatisticsWidget> {
                         child: _statCard(
                           context,
                           'Streak',
-                          '${valueOrDefault(currentUserDocument?.streakCount, 0)} days',
+                          '${kDemoMode ? DemoData.me.streakCount : valueOrDefault(currentUserDocument?.streakCount, 0)} days',
                         ),
                       ),
                       SizedBox(width: AppUi.gap),

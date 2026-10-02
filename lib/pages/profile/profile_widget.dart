@@ -3,6 +3,7 @@ import '/backend/backend.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
+import '/demo/demo_data.dart';
 import '/index.dart';
 import '/pages/post/post_widget.dart' show kEmotions;
 import '/ui/app_ui.dart';
@@ -232,13 +233,15 @@ class _ProfileWidgetState extends State<ProfileWidget> {
         FocusManager.instance.primaryFocus?.unfocus();
       },
       child: StreamBuilder<List<UsersRecord>>(
-        stream: queryUsersRecord(
-          queryBuilder: (usersRecord) => usersRecord.where(
-            'email',
-            isEqualTo: currentUserEmail,
-          ),
-          singleRecord: true,
-        ),
+        stream: kDemoMode
+            ? Stream.value([DemoData.me])
+            : queryUsersRecord(
+                queryBuilder: (usersRecord) => usersRecord.where(
+                  'email',
+                  isEqualTo: currentUserEmail,
+                ),
+                singleRecord: true,
+              ),
         builder: (context, snapshot) {
           if (!snapshot.hasData) {
             return Scaffold(
@@ -320,10 +323,14 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text('🔥', style: TextStyle(fontSize: 16.0)),
+                                  Icon(
+                                    Icons.local_fire_department_rounded,
+                                    size: 18.0,
+                                    color: FlutterFlowTheme.of(context).error,
+                                  ),
                                   SizedBox(width: 8.0),
                                   Text(
-                                    '${valueOrDefault(currentUserDocument?.streakCount, 0)} day streak',
+                                    '${kDemoMode ? DemoData.me.streakCount : valueOrDefault(currentUserDocument?.streakCount, 0)} day streak',
                                     style: AppUi.title(context, size: 15.0),
                                   ),
                                 ],
@@ -372,8 +379,8 @@ class _ProfileWidgetState extends State<ProfileWidget> {
                       ),
                     ),
 
-                    AppUi.sectionTitle(context, 'Demo data'),
-                    AppUi.card(
+                    if (!kDemoMode) AppUi.sectionTitle(context, 'Demo data'),
+                    if (!kDemoMode) AppUi.card(
                       context,
                       padding: EdgeInsets.all(AppUi.gutter),
                       child: Column(

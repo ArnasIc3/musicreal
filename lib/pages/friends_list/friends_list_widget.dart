@@ -4,6 +4,7 @@ import '/flutter_flow/flutter_flow_icon_button.dart';
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
+import '/demo/demo_data.dart';
 import '/index.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -251,11 +252,12 @@ class _FriendsListWidgetState extends State<FriendsListWidget>
                               AuthUserStreamWidget(
                                 builder: (context) => Builder(
                                   builder: (context) {
-                                    final myFriends = (currentUserDocument
-                                                ?.friends
-                                                .toList() ??
-                                            [])
-                                        .toList();
+                                    final myFriends = kDemoMode
+                                        ? DemoData.me.friends.toList()
+                                        : (currentUserDocument?.friends
+                                                    .toList() ??
+                                                [])
+                                            .toList();
 
                                     return ListView.builder(
                                       padding: EdgeInsets.zero,
@@ -270,8 +272,11 @@ class _FriendsListWidgetState extends State<FriendsListWidget>
                                               EdgeInsetsDirectional.fromSTEB(
                                                   16.0, 8.0, 16.0, 8.0),
                                           child: StreamBuilder<UsersRecord>(
-                                            stream: UsersRecord.getDocument(
-                                                myFriendsItem),
+                                            stream: kDemoMode
+                                                ? Stream.value(DemoData.userFor(
+                                                    myFriendsItem))
+                                                : UsersRecord.getDocument(
+                                                    myFriendsItem),
                                             builder: (context, snapshot) {
                                               // Customize what your widget looks like when it's loading.
                                               if (!snapshot.hasData) {
@@ -456,18 +461,21 @@ class _FriendsListWidgetState extends State<FriendsListWidget>
                             mainAxisSize: MainAxisSize.max,
                             children: [
                               StreamBuilder<List<FriendRequestsRecord>>(
-                                stream: queryFriendRequestsRecord(
-                                  queryBuilder: (friendRequestsRecord) =>
-                                      friendRequestsRecord
-                                          .where(
-                                            'receiver',
-                                            isEqualTo: currentUserReference,
-                                          )
-                                          .where(
-                                            'status',
-                                            isEqualTo: 'pending',
-                                          ),
-                                ),
+                                stream: kDemoMode
+                                    ? Stream.value(DemoData.pendingRequests)
+                                    : queryFriendRequestsRecord(
+                                        queryBuilder: (friendRequestsRecord) =>
+                                            friendRequestsRecord
+                                                .where(
+                                                  'receiver',
+                                                  isEqualTo:
+                                                      currentUserReference,
+                                                )
+                                                .where(
+                                                  'status',
+                                                  isEqualTo: 'pending',
+                                                ),
+                                      ),
                                 builder: (context, snapshot) {
                                   // Customize what your widget looks like when it's loading.
                                   if (!snapshot.hasData) {
@@ -503,9 +511,13 @@ class _FriendsListWidgetState extends State<FriendsListWidget>
                                         padding: EdgeInsetsDirectional.fromSTEB(
                                             16.0, 0.0, 16.0, 0.0),
                                         child: StreamBuilder<UsersRecord>(
-                                          stream: UsersRecord.getDocument(
-                                              listViewFriendRequestsRecord
-                                                  .sender!),
+                                          stream: kDemoMode
+                                              ? Stream.value(DemoData.userFor(
+                                                  listViewFriendRequestsRecord
+                                                      .sender!))
+                                              : UsersRecord.getDocument(
+                                                  listViewFriendRequestsRecord
+                                                      .sender!),
                                           builder: (context, snapshot) {
                                             // Customize what your widget looks like when it's loading.
                                             if (!snapshot.hasData) {
