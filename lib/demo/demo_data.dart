@@ -140,13 +140,20 @@ class DemoData {
     ];
   }
 
-  /// 30 days of the demo account's own posts — the statistics screen.
+  static List<UserPostRecord>? _myPosts;
+  static int _extraPosts = 0;
+
+  /// 30 days of the demo account's own posts — the statistics screen. Kept in
+  /// memory so a post made during the demo is added to it.
   static List<UserPostRecord> get myLastMonth {
-    final posts = <UserPostRecord>[];
+    final posts = _myPosts;
+    if (posts != null) return posts;
+
+    final built = <UserPostRecord>[];
     for (var day = 0; day < 30; day++) {
       if (day % 4 == 3) continue; // gaps, so the chart is not flat
       final song = _songs[(day * 3) % _songs.length][0];
-      posts.add(_post(
+      built.add(_post(
         meRef,
         'h$day',
         song,
@@ -154,7 +161,24 @@ class DemoData {
         _now.subtract(Duration(days: day, hours: 2)),
       ));
     }
-    return posts;
+    _myPosts = built;
+    return built;
+  }
+
+  /// Records a post made during the demo: it shows up in the statistics and
+  /// in the demo account's own history, exactly as a real post would.
+  static void addPost(String songName, String emoji) {
+    final posts = myLastMonth;
+    _extraPosts++;
+    posts.insert(
+      0,
+      UserPostRecord.getDocumentFromData({
+        'song_name': songName,
+        'emoji': emoji,
+        'post_user': meRef,
+        'created_at': DateTime.now(),
+      }, meRef.collection('userPost').doc('demo_new_$_extraPosts')),
+    );
   }
 
   // -------------------------------------------------------------- requests

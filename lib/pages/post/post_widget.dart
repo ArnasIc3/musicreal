@@ -5,6 +5,7 @@ import '/flutter_flow/custom_functions.dart' as functions;
 import '/flutter_flow/flutter_flow_theme.dart';
 import '/flutter_flow/flutter_flow_util.dart';
 import '/flutter_flow/flutter_flow_widgets.dart';
+import '/demo/demo_data.dart';
 import '/index.dart';
 import '/ui/app_ui.dart';
 import 'package:collection/collection.dart';
@@ -96,6 +97,16 @@ class _PostWidgetState extends State<PostWidget> {
     // The emotion buttons store an image URL, not a character.
     if (emoji.isEmpty || !emoji.startsWith('http') || emoji.length > 500) {
       _showMessage(context, 'Pick an emotion before posting.');
+      return;
+    }
+
+    if (kDemoMode) {
+      // Demo mode has no Firestore: keep the post in memory so the
+      // statistics and the streak react to it.
+      DemoData.addPost(song, emoji);
+      FFAppState().CurrentlySelectedSongPost = '';
+      _showMessage(context, 'Posted. Open Statistics to see it counted.');
+      context.pushNamed(HomeWidget.routeName);
       return;
     }
 
