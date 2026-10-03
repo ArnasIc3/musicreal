@@ -193,7 +193,7 @@ Nespauskite „Continue with Facebook“ — demo jis neapeina autentifikacijos.
 
 Papildomai naudinga: VS Code ekrano kopijos `post_widget.dart:18-23` ir `facebook_auth.dart:53-61`.
 
-## 10. Naudotos komandos (Git Bash, `C:\Users\pedse\Desktop\musicreal`)
+## 10. Naudotos komandos (Git Bash, repozitorijos šakniniame aplanke)
 
 ```bash
 export PATH="/c/Users/pedse/sdk/flutter/bin:$PATH"
@@ -214,7 +214,7 @@ flutter test test/mantas/authentication_test.dart --plain-name "EBT-AUTH-03"
 flutter test
 ```
 
-PowerShell: vietoje `flutter` naudoti `C:\Users\pedse\sdk\flutter\bin\flutter.bat`.
+`export PATH=…` nurodo Flutter SDK vietą Manto kompiuteryje (`C:\Users\pedse\sdk\flutter`); kitame kompiuteryje naudokite savo SDK kelią. PowerShell: vietoje `flutter` naudoti `<SDK>\bin\flutter.bat`.
 
 ## 11. Audito pataisymai (lyginant su ankstesne versija: 38 / 28 / 10)
 
@@ -285,7 +285,7 @@ D2–D4 ir G1 demo neatkuriami (kategorijos C/D, 9 sk.) — tai dokumentuota ir 
 
 ## 14. Įrodymai, kuriuos Mantas turi surinkti
 
-Nė viena žemiau nurodyta ekrano kopija dar nėra padaryta. Komandos vykdomos Git Bash aplanke `C:\Users\pedse\Desktop\musicreal` po `export PATH="/c/Users/pedse/sdk/flutter/bin:$PATH"`.
+Nė viena žemiau nurodyta ekrano kopija dar nėra padaryta. Komandos vykdomos Git Bash repozitorijos šakniniame aplanke, kai Flutter 3.44.9 yra `PATH` (Manto kompiuteryje: `export PATH="/c/Users/pedse/sdk/flutter/bin:$PATH"`). Atskiras gidas: `MANTO_SCREENSHOTS.md` repozitorijos šaknyje.
 
 - [ ] Screenshot — `flutter --version` (Flutter 3.44.9, Dart 3.12.2)
 - [ ] Screenshot — `flutter test test/mantas/ -r expanded`, paskutinė eilutė `+29 -9: Some tests failed` (38 testai: 29 PASS, 9 FAIL)
