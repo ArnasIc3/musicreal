@@ -21,8 +21,30 @@ class SongStat {
   final String topEmoji;
 }
 
+/// The user's own posts of the last 30 days, newest first: statistics are
+/// private to their owner (SCRUM-44).
+Stream<List<UserPostRecord>> lastThirtyDaysPosts(
+  DocumentReference? user,
+  DateTime now,
+) =>
+    user == null
+        ? Stream.value(<UserPostRecord>[])
+        : queryUserPostRecord(
+            parent: user,
+            queryBuilder: (userPostRecord) => userPostRecord
+                .where(
+                  'created_at',
+                  isGreaterThanOrEqualTo: now.subtract(Duration(days: 30)),
+                )
+                .orderBy('created_at', descending: true),
+          );
+
 class StatisticsWidget extends StatefulWidget {
-  const StatisticsWidget({super.key});
+  const StatisticsWidget({super.key, this.posts});
+
+  /// Replaces the Firestore query; for widget tests.
+  @visibleForTesting
+  final Stream<List<UserPostRecord>>? posts;
 
   static String routeName = 'Statistics';
   static String routePath = '/statistics';
@@ -44,20 +66,10 @@ class _StatisticsWidgetState extends State<StatisticsWidget> {
 
     // Recalculated every time the screen opens, over the user's own posts
     // only: statistics are private to their owner (SCRUM-44).
-    _lastMonthPosts = kDemoMode
-        ? Stream.value(DemoData.myLastMonth)
-        : currentUserReference == null
-        ? Stream.value([])
-        : queryUserPostRecord(
-            parent: currentUserReference,
-            queryBuilder: (userPostRecord) => userPostRecord
-                .where(
-                  'created_at',
-                  isGreaterThanOrEqualTo:
-                      getCurrentTimestamp.subtract(Duration(days: 30)),
-                )
-                .orderBy('created_at', descending: true),
-          );
+    _lastMonthPosts = widget.posts ??
+        (kDemoMode
+            ? Stream.value(DemoData.myLastMonth)
+            : lastThirtyDaysPosts(currentUserReference, getCurrentTimestamp));
   }
 
   @override

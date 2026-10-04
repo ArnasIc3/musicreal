@@ -90,188 +90,6 @@ class _HomeWidgetState extends State<HomeWidget> {
     super.dispose();
   }
 
-  /// The track behind a post, when the song exists in the catalogue.
-  Widget _player(BuildContext context, String songName) {
-    final demoMusic = DemoData.musicNamed(songName);
-    return StreamBuilder<List<MusicRecord>>(
-      stream: kDemoMode
-          ? Stream.value([if (demoMusic != null) demoMusic])
-          : queryMusicRecord(
-              queryBuilder: (musicRecord) =>
-                  musicRecord.where('SongName', isEqualTo: songName),
-              singleRecord: true,
-            ),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return SizedBox(
-              height: 48.0, child: AppUi.loader(context, size: 24.0));
-        }
-        final music = snapshot.data!.firstOrNull;
-        // The song may not be in the catalogue any more.
-        if (music == null || music.songURL.isEmpty) {
-          return SizedBox.shrink();
-        }
-        return Padding(
-          padding: EdgeInsetsDirectional.fromSTEB(0.0, AppUi.gap, 0.0, 0.0),
-          child: FlutterFlowAudioPlayer(
-            audio: Audio.network(music.songURL, metas: Metas()),
-            titleTextStyle: FlutterFlowTheme.of(context).titleLarge.override(
-                  font: GoogleFonts.urbanist(),
-                  color: Color(0x00FFFFFF),
-                  letterSpacing: 0.0,
-                ),
-            playbackDurationTextStyle:
-                FlutterFlowTheme.of(context).labelMedium.override(
-                      font: GoogleFonts.inter(),
-                      color: FlutterFlowTheme.of(context).secondaryText,
-                      fontSize: 12.0,
-                      letterSpacing: 0.0,
-                    ),
-            fillColor: FlutterFlowTheme.of(context).primaryBackground,
-            playbackButtonColor: FlutterFlowTheme.of(context).primary,
-            activeTrackColor: FlutterFlowTheme.of(context).primary,
-            inactiveTrackColor: FlutterFlowTheme.of(context).alternate,
-            elevation: 0.0,
-            playInBackground: PlayInBackground.disabledRestoreOnForeground,
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _postCard(BuildContext context, UserPostRecord post) {
-    return StreamBuilder<UsersRecord>(
-      stream: kDemoMode
-          ? Stream.value(DemoData.userFor(post.postUser!))
-          : UsersRecord.getDocument(post.postUser!),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return Padding(
-            padding: EdgeInsetsDirectional.fromSTEB(
-                AppUi.gutter, 0.0, AppUi.gutter, AppUi.gap),
-            child: SizedBox(height: 92.0, child: AppUi.loader(context)),
-          );
-        }
-        final author = snapshot.data!;
-
-        return Padding(
-          padding: EdgeInsetsDirectional.fromSTEB(
-              AppUi.gutter, 0.0, AppUi.gutter, AppUi.gap),
-          child: AppUi.card(
-            context,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    AppUi.avatar(context, author.photoUrl, size: 44.0),
-                    SizedBox(width: AppUi.gap),
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            author.displayName,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppUi.title(context),
-                          ),
-                          SizedBox(height: 2.0),
-                          Text(
-                            post.songName,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppUi.body(context),
-                          ),
-                          if (post.createdAt != null) ...[
-                            SizedBox(height: 2.0),
-                            Text(
-                              dateTimeFormat('relative', post.createdAt),
-                              style: AppUi.muted(context),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    SizedBox(width: AppUi.gap),
-                    AppUi.squareImage(
-                      context,
-                      post.emoji,
-                      size: 52.0,
-                      fallback: Icons.emoji_emotions_outlined,
-                    ),
-                  ],
-                ),
-                _player(context, post.songName),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _feed(BuildContext context) {
-    final friends = kDemoMode
-        ? DemoData.me.friends.toList()
-        : (currentUserDocument?.friends.toList() ?? []);
-
-    if (friends.isEmpty) {
-      return AppUi.emptyState(
-        context,
-        icon: Icons.group_add_outlined,
-        title: 'Your feed is empty',
-        message: 'Add friends to see the songs and emotions they post.',
-        action: FFButtonWidget(
-          onPressed: () async {
-            context.pushNamed(FriendsListAddFriendWidget.routeName);
-          },
-          text: 'Find friends',
-          options: AppUi.primaryButton(context),
-        ),
-      );
-    }
-
-    // SCRUM-49: the feed carries today's posts from confirmed friends only.
-    final startOfToday = functions.startOfDay(getCurrentTimestamp);
-
-    return StreamBuilder<List<UserPostRecord>>(
-      stream: kDemoMode
-          ? Stream.value(DemoData.todaysFeed)
-          : queryUserPostRecord(
-              queryBuilder: (userPostRecord) => userPostRecord
-                  .whereIn('post_user', friends)
-                  .where('created_at', isGreaterThanOrEqualTo: startOfToday)
-                  .orderBy('created_at', descending: true),
-            ),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return Padding(
-            padding: EdgeInsets.only(top: 48.0),
-            child: AppUi.loader(context),
-          );
-        }
-        final posts = snapshot.data!;
-        if (posts.isEmpty) {
-          return AppUi.emptyState(
-            context,
-            icon: Icons.music_note_outlined,
-            title: 'No posts today',
-            message:
-                'The feed shows what your friends posted today. Nothing yet — check back later.',
-          );
-        }
-        return ListView.builder(
-          padding: EdgeInsets.only(top: AppUi.gap, bottom: 96.0),
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          itemCount: posts.length,
-          itemBuilder: (context, index) => _postCard(context, posts[index]),
-        );
-      },
-    );
-  }
-
   Widget _streakPill(BuildContext context) {
     return AuthUserStreamWidget(
       builder: (context) => Container(
@@ -352,11 +170,225 @@ class _HomeWidgetState extends State<HomeWidget> {
           top: true,
           child: AuthUserStreamWidget(
             builder: (context) => SingleChildScrollView(
-              child: _feed(context),
+              child: FriendFeed(),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// SCRUM-49: the feed carries today's posts from confirmed friends only,
+/// newest first.
+Query friendsFeedQuery(
+  Query userPostRecord,
+  List<DocumentReference> friends,
+  DateTime now,
+) =>
+    userPostRecord
+        .whereIn('post_user', friends)
+        .where('created_at', isGreaterThanOrEqualTo: functions.startOfDay(now))
+        .orderBy('created_at', descending: true);
+
+/// Where the friend feed reads its data from: Firestore, or the fixed demo
+/// data. Widget tests pass their own.
+class FeedSource {
+  const FeedSource();
+
+  List<DocumentReference> friends() => kDemoMode
+      ? DemoData.me.friends.toList()
+      : (currentUserDocument?.friends.toList() ?? []);
+
+  Stream<List<UserPostRecord>> todaysPosts(List<DocumentReference> friends) =>
+      kDemoMode
+          ? Stream.value(DemoData.todaysFeed)
+          : queryUserPostRecord(
+              queryBuilder: (userPostRecord) => friendsFeedQuery(
+                  userPostRecord, friends, getCurrentTimestamp),
+            );
+
+  Stream<UsersRecord> author(DocumentReference user) => kDemoMode
+      ? Stream.value(DemoData.userFor(user))
+      : UsersRecord.getDocument(user);
+
+  Stream<List<MusicRecord>> music(String songName) {
+    final demoMusic = DemoData.musicNamed(songName);
+    return kDemoMode
+        ? Stream.value([if (demoMusic != null) demoMusic])
+        : queryMusicRecord(
+            queryBuilder: (musicRecord) =>
+                musicRecord.where('SongName', isEqualTo: songName),
+            singleRecord: true,
+          );
+  }
+}
+
+/// The friends' posts of today, or an empty-feed message.
+class FriendFeed extends StatelessWidget {
+  const FriendFeed({super.key, this.source = const FeedSource()});
+
+  final FeedSource source;
+
+  /// The track behind a post, when the song exists in the catalogue.
+  Widget _player(BuildContext context, String songName) {
+    return StreamBuilder<List<MusicRecord>>(
+      stream: source.music(songName),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return SizedBox(
+              height: 48.0, child: AppUi.loader(context, size: 24.0));
+        }
+        final music = snapshot.data!.firstOrNull;
+        // The song may not be in the catalogue any more.
+        if (music == null || music.songURL.isEmpty) {
+          return SizedBox.shrink();
+        }
+        return Padding(
+          padding: EdgeInsetsDirectional.fromSTEB(0.0, AppUi.gap, 0.0, 0.0),
+          child: FlutterFlowAudioPlayer(
+            audio: Audio.network(music.songURL, metas: Metas()),
+            titleTextStyle: FlutterFlowTheme.of(context).titleLarge.override(
+                  font: GoogleFonts.urbanist(),
+                  color: Color(0x00FFFFFF),
+                  letterSpacing: 0.0,
+                ),
+            playbackDurationTextStyle:
+                FlutterFlowTheme.of(context).labelMedium.override(
+                      font: GoogleFonts.inter(),
+                      color: FlutterFlowTheme.of(context).secondaryText,
+                      fontSize: 12.0,
+                      letterSpacing: 0.0,
+                    ),
+            fillColor: FlutterFlowTheme.of(context).primaryBackground,
+            playbackButtonColor: FlutterFlowTheme.of(context).primary,
+            activeTrackColor: FlutterFlowTheme.of(context).primary,
+            inactiveTrackColor: FlutterFlowTheme.of(context).alternate,
+            elevation: 0.0,
+            playInBackground: PlayInBackground.disabledRestoreOnForeground,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _postCard(BuildContext context, UserPostRecord post) {
+    return StreamBuilder<UsersRecord>(
+      stream: source.author(post.postUser!),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Padding(
+            padding: EdgeInsetsDirectional.fromSTEB(
+                AppUi.gutter, 0.0, AppUi.gutter, AppUi.gap),
+            child: SizedBox(height: 92.0, child: AppUi.loader(context)),
+          );
+        }
+        final author = snapshot.data!;
+
+        return Padding(
+          padding: EdgeInsetsDirectional.fromSTEB(
+              AppUi.gutter, 0.0, AppUi.gutter, AppUi.gap),
+          child: AppUi.card(
+            context,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    AppUi.avatar(context, author.photoUrl, size: 44.0),
+                    SizedBox(width: AppUi.gap),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            author.displayName,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppUi.title(context),
+                          ),
+                          SizedBox(height: 2.0),
+                          Text(
+                            post.songName,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppUi.body(context),
+                          ),
+                          if (post.createdAt != null) ...[
+                            SizedBox(height: 2.0),
+                            Text(
+                              dateTimeFormat('relative', post.createdAt),
+                              style: AppUi.muted(context),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: AppUi.gap),
+                    AppUi.squareImage(
+                      context,
+                      post.emoji,
+                      size: 52.0,
+                      fallback: Icons.emoji_emotions_outlined,
+                    ),
+                  ],
+                ),
+                _player(context, post.songName),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final friends = source.friends();
+
+    if (friends.isEmpty) {
+      return AppUi.emptyState(
+        context,
+        icon: Icons.group_add_outlined,
+        title: 'Your feed is empty',
+        message: 'Add friends to see the songs and emotions they post.',
+        action: FFButtonWidget(
+          onPressed: () async {
+            context.pushNamed(FriendsListAddFriendWidget.routeName);
+          },
+          text: 'Find friends',
+          options: AppUi.primaryButton(context),
+        ),
+      );
+    }
+
+    return StreamBuilder<List<UserPostRecord>>(
+      stream: source.todaysPosts(friends),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Padding(
+            padding: EdgeInsets.only(top: 48.0),
+            child: AppUi.loader(context),
+          );
+        }
+        final posts = snapshot.data!;
+        if (posts.isEmpty) {
+          return AppUi.emptyState(
+            context,
+            icon: Icons.music_note_outlined,
+            title: 'No posts today',
+            message:
+                'The feed shows what your friends posted today. Nothing yet — check back later.',
+          );
+        }
+        return ListView.builder(
+          padding: EdgeInsets.only(top: AppUi.gap, bottom: 96.0),
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          itemCount: posts.length,
+          itemBuilder: (context, index) => _postCard(context, posts[index]),
+        );
+      },
     );
   }
 }
