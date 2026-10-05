@@ -45,3 +45,11 @@ firestore-debug.log
 *serviceAccount*.json
 *service-account*.json
 firebase/seed/node_modules/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Local working notes
+JIRA_DOKUMENTAVIMAS_ARNAS.md
